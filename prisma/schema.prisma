@@ -1,0 +1,244 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  AUTHOR
+  GUEST
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+}
+
+enum ContentSource {
+  TEXT_EDITOR
+  DOC_UPLOAD
+  HTML_UPLOAD
+}
+
+enum ConversionStatus {
+  NONE
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum MediaUsage {
+  COVER_IMAGE
+  INLINE_IMAGE
+  PROFILE_IMAGE
+  CATEGORY_IMAGE
+  LEGAL_IMAGE
+  DOCUMENT
+  OTHER
+}
+
+model AdminUser {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  username       String?   @unique
+  password       String
+  name           String
+  avatarUrl      String?
+  avatarPublicId String?
+  bio            String?   @db.Text
+  role           Role      @default(ADMIN)
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  
+  posts          Post[]
+  uploadedMedia  Media[]
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  posts     Post[]
+  
+  @@index([slug])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  
+  posts     Post[]   @relation("PostTags")
+  
+  @@index([slug])
+}
+
+model Post {
+  id                       String           @id @default(uuid())
+  title                    String
+  slug                     String           @unique
+  subtitle                 String?
+  contentHtml              String           @db.Text
+  contentCss               String?          @db.Text
+  contentJson              String           @db.Text
+  coverImageUrl            String?
+  coverImagePublicId       String?
+  
+  status                   PostStatus       @default(DRAFT)
+  sourceType               ContentSource    @default(TEXT_EDITOR)
+  conversionStatus         ConversionStatus @default(NONE)
+  
+  originalDocumentUrl      String?
+  originalDocumentPublicId String?
+  
+  metaTitle                String?
+  metaDescription          String?          @db.Text
+  canonicalUrl             String?
+  
+  isFeatured               Boolean          @default(false)
+  isTrending               Boolean          @default(false)
+  isEditorPick             Boolean          @default(false)
+  
+  publishedAt              DateTime?
+  scheduledAt              DateTime?
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  
+  readingTime              Int              @default(0) // in minutes
+  views                    Int              @default(0)
+  clicks                   Int              @default(0)
+  shares                   Int              @default(0)
+  
+  categoryId               String?
+  category                 Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  
+  authorId                 String
+  author                   AdminUser        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  
+  tags                     Tag[]            @relation("PostTags")
+  comments                 Comment[]
+  media                    Media[]
+  analytics                Analytics[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([categoryId])
+}
+
+model Media {
+  id           String     @id @default(uuid())
+  url          String
+  publicId     String     @unique
+  folder       String?
+  resourceType String?    // e.g., "image", "video", "raw"
+  mimeType     String?
+  format       String?
+  bytes        Int?
+  width        Int?
+  height       Int?
+  altText      String?
+  caption      String?    @db.Text
+  
+  usedFor      MediaUsage @default(OTHER)
+  
+  postId       String?
+  post         Post?      @relation(fields: [postId], references: [id], onDelete: SetNull)
+  
+  uploadedById String?
+  uploadedBy   AdminUser? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime   @default(now())
+  
+  @@index([publicId])
+}
+
+model Comment {
+  id          String   @id @default(uuid())
+  content     String   @db.Text
+  authorName  String
+  authorEmail String
+  isApproved  Boolean  @default(false)
+  
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  group     String?
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String   @db.Text
+  isRead    Boolean  @default(false)
+  type      String   // e.g., "COMMENT", "SYSTEM"
+  createdAt DateTime @default(now())
+}
+
+model Analytics {
+  id          String   @id @default(uuid())
+  date        DateTime
+  views       Int      @default(0)
+  visitors    Int      @default(0)
+  clicks      Int      @default(0)
+  shares      Int      @default(0)
+  readingTime Int      @default(0)
+  source      String?  // e.g., "direct", "organic", "social"
+  
+  postId      String?
+  post        Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  categoryId  String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([date, postId]) // Daily analytics per post
+  @@index([date])
+}
+
+model LegalPage {
+  id               String     @id @default(uuid())
+  title            String
+  slug             String     @unique
+  content          String?    @db.Text
+  contentHtml      String?    @db.Text
+  contentCss       String?    @db.Text
+  
+  documentUrl      String?
+  documentPublicId String?
+  
+  status           PostStatus @default(DRAFT)
+  isActive         Boolean    @default(true)
+  
+  lastUpdatedById  String?
+  publishedAt      DateTime?
+  
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  
+  @@index([slug])
+}
