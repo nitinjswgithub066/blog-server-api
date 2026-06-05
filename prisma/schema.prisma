@@ -242,3 +242,106 @@ model LegalPage {
   
   @@index([slug])
 }
+
+enum ContactStatus {
+  UNREAD
+  READ
+  REPLIED
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum EmailType {
+  FORGOT_PASSWORD
+  CONTACT_ALERT
+  COMMENT_ALERT
+  NEWSLETTER_WELCOME
+  NEW_POST_PUBLISHED
+  SCHEDULED_POST_PUBLISHED
+  DOCUMENT_CONVERSION
+  SYSTEM_ALERT
+}
+
+model ContactMessage {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  subject   String
+  message   String   @db.Text
+  pageUrl   String?
+  status    ContactStatus @default(UNREAD)
+  ipAddress String?
+  userAgent String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NewsletterSubscriber {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String?
+  status           SubscriberStatus @default(ACTIVE)
+  source           String?  // e.g., "footer", "popup"
+  unsubscribeToken String   @unique @default(uuid())
+  subscribedAt     DateTime @default(now())
+  unsubscribedAt   DateTime?
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  @@index([email])
+  @@index([status])
+}
+
+model EmailQueue {
+  id           String      @id @default(uuid())
+  type         EmailType
+  toEmail      String
+  toName       String?
+  subject      String
+  htmlBody     String      @db.Text
+  textBody     String?     @db.Text
+  status       EmailStatus @default(PENDING)
+  attempts     Int         @default(0)
+  maxAttempts  Int         @default(3)
+  lastError    String?     @db.Text
+  scheduledFor DateTime?
+  sentAt       DateTime?
+  
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  @@index([status])
+  @@index([scheduledFor])
+  @@index([type])
+}
+
+model EmailLog {
+  id                String      @id @default(uuid())
+  type              EmailType
+  toEmail           String
+  subject           String
+  status            EmailStatus
+  provider          String?     // e.g., "SendGrid", "Resend", "SMTP"
+  providerMessageId String?
+  errorMessage      String?     @db.Text
+  sentAt            DateTime?
+  
+  createdAt         DateTime    @default(now())
+  
+  @@index([status])
+  @@index([createdAt])
+}
