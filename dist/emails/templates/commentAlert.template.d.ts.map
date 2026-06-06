@@ -1,1 +1,0 @@
-{"version":3,"file":"commentAlert.template.d.ts","sourceRoot":"","sources":["../../../src/emails/templates/commentAlert.template.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,mBAAmB,EAAE,MAAM,gBAAgB,CAAC;AAGrD,eAAO,MAAM,yBAAyB,SAAU;IAAE,SAAS,EAAE,MAAM,CAAC;IAAC,UAAU,EAAE,MAAM,CAAC;IAAC,cAAc,EAAE,MAAM,CAAC;CAAE,KAAG,mBAepH,CAAC"}

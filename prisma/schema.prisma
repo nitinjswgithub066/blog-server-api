@@ -56,6 +56,9 @@ model AdminUser {
   role           Role      @default(ADMIN)
   isActive       Boolean   @default(true)
   lastLoginAt    DateTime?
+  adminRegistrationCodeHash String?
+  passwordResetTokenHash    String?
+  passwordResetExpiresAt    DateTime?
   
   posts          Post[]
   uploadedMedia  Media[]
@@ -261,7 +264,9 @@ enum EmailStatus {
 }
 
 enum EmailType {
+  ADMIN_ACCOUNT_CREATED
   FORGOT_PASSWORD
+  PASSWORD_CHANGED
   CONTACT_ALERT
   COMMENT_ALERT
   NEWSLETTER_WELCOME
@@ -269,6 +274,12 @@ enum EmailType {
   SCHEDULED_POST_PUBLISHED
   DOCUMENT_CONVERSION
   SYSTEM_ALERT
+}
+
+enum TrendSource {
+  INTERNAL_ANALYTICS
+  GOOGLE_SEARCH_CONSOLE
+  EXTERNAL_TRENDS
 }
 
 model ContactMessage {
@@ -344,4 +355,22 @@ model EmailLog {
   
   @@index([status])
   @@index([createdAt])
+}
+
+model TrendSnapshot {
+  id             String      @id @default(uuid())
+  source         TrendSource @default(INTERNAL_ANALYTICS)
+  category       String
+  categorySlug   String?
+  label          String
+  score          Int         @default(0)
+  growth         Float       @default(0)
+  searchVolume   Int?
+  suggestedTopic String?
+  snapshotDate   DateTime    @default(now())
+  createdAt      DateTime    @default(now())
+
+  @@index([source])
+  @@index([categorySlug])
+  @@index([snapshotDate])
 }

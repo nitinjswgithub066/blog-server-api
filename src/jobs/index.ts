@@ -2,6 +2,8 @@ import { sendPendingEmailsJob } from "./sendPendingEmails.job";
 import { publishScheduledPostsJob } from "./publishScheduledPosts.job";
 import { cleanupTempMediaJob } from "./cleanupTempMedia.job";
 import { analyticsRollupJob } from "./analyticsRollup.job";
+import { keepAliveJob } from "./keepAlive.job";
+import { dashboardTrendSnapshotJob } from "./dashboardTrendSnapshot.job";
 
 let jobsStarted = false;
 
@@ -25,7 +27,13 @@ export const startCronJobs = () => {
     publishScheduledPostsJob.start();
     cleanupTempMediaJob.start();
     analyticsRollupJob.start();
+    dashboardTrendSnapshotJob.start();
     
+    if (process.env.ENABLE_DB_KEEP_ALIVE === "true") {
+      keepAliveJob.start();
+      console.log("[CRON] Database keep-alive job initialized.");
+    }
+
     jobsStarted = true;
 
     console.log("[CRON] Cron jobs initialized successfully.");
