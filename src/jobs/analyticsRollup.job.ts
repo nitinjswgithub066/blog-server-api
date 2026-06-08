@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { AnalyticsSource } from "@prisma/client";
 import { prisma } from "../config/prisma";
 
 export const analyticsRollupJob = cron.schedule("0 1 * * *", async () => {
@@ -22,7 +23,7 @@ export const analyticsRollupJob = cron.schedule("0 1 * * *", async () => {
           clicks: 0,
           shares: 0,
           readingTime: 0,
-          source: "rollup-job",
+          source: AnalyticsSource.INTERNAL_ANALYTICS,
         },
       });
     }

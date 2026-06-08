@@ -1,14 +1,23 @@
 import { EmailTemplateResult } from "../email.types";
-import { baseEmailTemplate } from "./baseEmail.template";
+import { baseEmailTemplate, detailRows, emailButton, escapeHtml } from "./baseEmail.template";
 
-export const buildCommentAlertTemplate = (data: { postTitle: string; authorName: string; commentContent: string; }): EmailTemplateResult => {
+export const buildCommentAlertTemplate = (data: {
+  postTitle: string;
+  authorName: string;
+  authorEmail?: string;
+  commentContent: string;
+  reviewUrl?: string;
+}): EmailTemplateResult => {
   const content = `
-    <h2>New Comment Alert</h2>
-    <p>A new comment was posted on your article: <strong>${data.postTitle}</strong></p>
-    <p><strong>From:</strong> ${data.authorName}</p>
-    <p><strong>Comment:</strong><br/>${data.commentContent}</p>
-    <br/>
-    <a href="#" style="background: #6d5df6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Review Comment</a>
+    <h1 style="margin:0 0 12px;color:#ffffff;font-size:26px;line-height:1.25;">New comment alert</h1>
+    <p style="margin:0;color:#cbd5e1;font-size:15px;line-height:1.7;">A new comment was posted and may need review.</p>
+    ${detailRows([
+      ["Post", data.postTitle],
+      ["Author", data.authorName],
+      ["Author email", data.authorEmail || "Not provided"],
+    ])}
+    <div style="background:#111827;border:1px solid #273244;border-radius:14px;padding:16px;margin:20px 0;color:#e5e7eb;font-size:15px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(data.commentContent)}</div>
+    ${data.reviewUrl ? `<div style="margin-top:24px;">${emailButton(data.reviewUrl, "Review Comment")}</div>` : ""}
   `;
 
   return {

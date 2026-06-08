@@ -1,19 +1,13 @@
+import { baseEmailTemplate, detailRows, escapeHtml, securityNote } from "./baseEmail.template";
+
 export const getPasswordChangedTemplate = (data: {
   name: string;
   time: string;
 }) => {
-  return `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2>Your Admin Password Was Changed</h2>
-      <p>Hello ${data.name},</p>
-      
-      <p>This is a confirmation that your admin account password was successfully changed at <strong>${data.time}</strong>.</p>
-      
-      <div style="background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #ffeeba;">
-        <strong>Security Alert:</strong> If this was not you, please secure your account immediately and contact technical support.
-      </div>
-
-      <p>Best regards,<br>Blog System</p>
-    </div>
-  `;
+  return baseEmailTemplate(`
+    <h1 style="margin:0 0 12px;color:#ffffff;font-size:26px;line-height:1.25;">Your password was changed</h1>
+    <p style="margin:0;color:#cbd5e1;font-size:15px;line-height:1.7;">Hello ${escapeHtml(data.name)}, this confirms your admin password was changed.</p>
+    ${detailRows([["Changed at", data.time]])}
+    ${securityNote("If this was not you, reset your password immediately and review your account access.")}
+  `);
 };

@@ -1,16 +1,65 @@
-import { EmailType, Prisma } from "@prisma/client";
+import nodemailer from "nodemailer";
+import type { Transporter } from "nodemailer";
+import { EmailQueue, EmailType, Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { SendEmailOptions } from "./email.types";
 
+type SendEmailResult =
+  | { status: "SENT"; providerMessageId?: string }
+  | { status: "NOT_CONFIGURED" };
+
+let cachedTransporter: Transporter | null = null;
+let warnedMissingConfig = false;
+
+const isSmtpConfigured = () => {
+  return (
+    process.env.EMAIL_PROVIDER === "smtp" &&
+    !!process.env.SMTP_HOST &&
+    !!process.env.SMTP_PORT &&
+    !!process.env.SMTP_SECURE &&
+    !!process.env.SMTP_USER &&
+    !!process.env.SMTP_PASS &&
+    !!process.env.EMAIL_FROM
+  );
+};
+
+const getTransporter = () => {
+  if (!isSmtpConfigured()) {
+    if (!warnedMissingConfig) {
+      console.warn("[EMAIL SERVICE] SMTP is not fully configured. Pending emails will remain queued.");
+      warnedMissingConfig = true;
+    }
+    return null;
+  }
+
+  if (cachedTransporter) return cachedTransporter;
+
+  cachedTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  return cachedTransporter;
+};
+
+const buildLastError = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  return typeof error === "string" ? error : "Email sending failed";
+};
+
 export const emailService = {
-  /**
-   * Queue an email to be sent later by the cron job
-   */
   async queueEmail(options: SendEmailOptions & { type: EmailType; scheduledFor?: Date }) {
     try {
       await prisma.emailQueue.create({
         data: {
           toEmail: options.to,
+          toName: options.toName || null,
+          replyToEmail: options.replyTo || null,
           subject: options.subject,
           htmlBody: options.html,
           textBody: options.text || null,
@@ -21,87 +70,99 @@ export const emailService = {
       console.log(`[EMAIL SERVICE] Email queued successfully for ${options.to}`);
     } catch (error) {
       console.error("[EMAIL SERVICE] Error queuing email:", error);
-      // Safe fail - don't crash the server
     }
   },
 
-  /**
-   * Attempt to send an email immediately
-   */
-  async sendEmailNow(options: SendEmailOptions) {
-    try {
-      // TODO: Implement actual SMTP/Provider (e.g. Resend, SendGrid) credentials check here
-      const isProviderConfigured = false; 
-
-      if (!isProviderConfigured) {
-        console.warn(`[EMAIL SERVICE] Warning: Email provider not configured. Skipping email to ${options.to}`);
-        return "NOT_CONFIGURED";
-      }
-
-      console.log(`[EMAIL SERVICE] Email sent successfully to ${options.to}`);
-      return true;
-    } catch (error) {
-      console.error("[EMAIL SERVICE] Error sending email now:", error);
-      return false;
+  async sendEmailNow(options: SendEmailOptions): Promise<SendEmailResult> {
+    const transporter = getTransporter();
+    if (!transporter) {
+      return { status: "NOT_CONFIGURED" };
     }
+
+    const result = await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: options.toName ? { name: options.toName, address: options.to } : options.to,
+      replyTo: options.replyTo,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    });
+
+    console.log(`[EMAIL SERVICE] Email sent successfully to ${options.to}`);
+    return { status: "SENT", providerMessageId: result.messageId };
   },
 
-  /**
-   * Process a single pending email from the queue
-   */
-  async processPendingEmail(emailQueueRecord: any) {
+  async processPendingEmail(emailQueueRecord: EmailQueue) {
     try {
-      const sent = await this.sendEmailNow({
+      const sendOptions: SendEmailOptions = {
         to: emailQueueRecord.toEmail,
         subject: emailQueueRecord.subject,
         html: emailQueueRecord.htmlBody,
-        text: emailQueueRecord.textBody,
         type: emailQueueRecord.type,
-      });
+      };
 
-      if (sent === "NOT_CONFIGURED") {
-        // Leave status as PENDING and do not increment attempts
-        await prisma.emailQueue.update({
+      if (emailQueueRecord.toName) sendOptions.toName = emailQueueRecord.toName;
+      if (emailQueueRecord.replyToEmail) sendOptions.replyTo = emailQueueRecord.replyToEmail;
+      if (emailQueueRecord.textBody) sendOptions.text = emailQueueRecord.textBody;
+
+      const sent = await this.sendEmailNow(sendOptions);
+
+      if (sent.status === "NOT_CONFIGURED") {
+        return;
+      }
+
+      await prisma.$transaction([
+        prisma.emailQueue.update({
           where: { id: emailQueueRecord.id },
-          data: { lastError: "Email provider not configured, skipping pending emails" },
-        });
-      } else if (sent === true) {
-        await prisma.$transaction([
-          prisma.emailQueue.update({
-            where: { id: emailQueueRecord.id },
-            data: { status: "SENT", sentAt: new Date() },
-          }),
+          data: { status: "SENT", sentAt: new Date(), lastError: null },
+        }),
+        prisma.emailLog.create({
+          data: {
+            toEmail: emailQueueRecord.toEmail,
+            replyToEmail: emailQueueRecord.replyToEmail,
+            subject: emailQueueRecord.subject,
+            type: emailQueueRecord.type,
+            status: "SENT",
+            sentAt: new Date(),
+            provider: "SMTP",
+            providerMessageId: sent.providerMessageId || null,
+          },
+        }),
+      ]);
+    } catch (error) {
+      const lastError = buildLastError(error);
+      const nextAttempts = emailQueueRecord.attempts + 1;
+      const nextStatus = nextAttempts >= emailQueueRecord.maxAttempts ? "FAILED" : "PENDING";
+
+      const operations: Prisma.PrismaPromise<any>[] = [
+        prisma.emailQueue.update({
+          where: { id: emailQueueRecord.id },
+          data: {
+            attempts: nextAttempts,
+            status: nextStatus,
+            lastError,
+          },
+        }),
+      ];
+
+      if (nextStatus === "FAILED") {
+        operations.push(
           prisma.emailLog.create({
             data: {
               toEmail: emailQueueRecord.toEmail,
+              replyToEmail: emailQueueRecord.replyToEmail,
               subject: emailQueueRecord.subject,
-              type: emailQueueRecord.type as EmailType,
-              status: "SENT",
-              sentAt: new Date(),
-              provider: "PLACEHOLDER", // Replace with real provider
+              type: emailQueueRecord.type,
+              status: "FAILED",
+              provider: "SMTP",
+              errorMessage: lastError,
             },
-          }),
-        ]);
-      } else {
-        // Actual failure
-        await prisma.emailQueue.update({
-          where: { id: emailQueueRecord.id },
-          data: {
-            attempts: { increment: 1 },
-            status: emailQueueRecord.attempts + 1 >= emailQueueRecord.maxAttempts ? "FAILED" : "PENDING",
-            lastError: "Email sending failed",
-          },
-        });
+          })
+        );
       }
-    } catch (error: any) {
-      console.error(`[EMAIL SERVICE] Failed to process email queue record ${emailQueueRecord.id}:`, error);
-      await prisma.emailQueue.update({
-        where: { id: emailQueueRecord.id },
-        data: {
-          attempts: { increment: 1 },
-          lastError: error.message || "Unknown error",
-        },
-      });
+
+      await prisma.$transaction(operations);
+      console.error(`[EMAIL SERVICE] Failed to process email queue record ${emailQueueRecord.id}:`, lastError);
     }
   },
 };

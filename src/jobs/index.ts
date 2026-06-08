@@ -4,6 +4,8 @@ import { cleanupTempMediaJob } from "./cleanupTempMedia.job";
 import { analyticsRollupJob } from "./analyticsRollup.job";
 import { keepAliveJob } from "./keepAlive.job";
 import { dashboardTrendSnapshotJob } from "./dashboardTrendSnapshot.job";
+import { blogPerformanceRollupJob } from "./blogPerformanceRollup.job";
+import { cleanupDeletedPostsJob } from "./cleanupDeletedPosts.job";
 
 let jobsStarted = false;
 
@@ -28,6 +30,8 @@ export const startCronJobs = () => {
     cleanupTempMediaJob.start();
     analyticsRollupJob.start();
     dashboardTrendSnapshotJob.start();
+    blogPerformanceRollupJob.start();
+    cleanupDeletedPostsJob.start();
     
     if (process.env.ENABLE_DB_KEEP_ALIVE === "true") {
       keepAliveJob.start();

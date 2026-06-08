@@ -18,6 +18,7 @@ enum PostStatus {
   PUBLISHED
   SCHEDULED
   ARCHIVED
+  DELETED
 }
 
 enum ContentSource {
@@ -59,6 +60,8 @@ model AdminUser {
   adminRegistrationCodeHash String?
   passwordResetTokenHash    String?
   passwordResetExpiresAt    DateTime?
+  passwordResetTokenUsedAt  DateTime?
+  passwordResetTokenViewedAt DateTime?
   
   posts          Post[]
   uploadedMedia  Media[]
@@ -74,7 +77,8 @@ model Category {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
-  posts     Post[]
+  posts       Post[]
+  topicNotes  TopicNote[]
   
   @@index([slug])
 }
@@ -118,6 +122,7 @@ model Post {
   
   publishedAt              DateTime?
   scheduledAt              DateTime?
+  deletedAt                DateTime?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   
@@ -140,6 +145,7 @@ model Post {
   @@index([slug])
   @@index([status])
   @@index([publishedAt])
+  @@index([deletedAt])
   @@index([categoryId])
 }
 
@@ -204,12 +210,13 @@ model Notification {
 model Analytics {
   id          String   @id @default(uuid())
   date        DateTime
+  hour        Int?
   views       Int      @default(0)
   visitors    Int      @default(0)
   clicks      Int      @default(0)
   shares      Int      @default(0)
   readingTime Int      @default(0)
-  source      String?  // e.g., "direct", "organic", "social"
+  source      AnalyticsSource @default(INTERNAL_ANALYTICS)
   
   postId      String?
   post        Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -219,8 +226,28 @@ model Analytics {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   
-  @@unique([date, postId]) // Daily analytics per post
   @@index([date])
+}
+
+enum AnalyticsSource {
+  INTERNAL_ANALYTICS
+  GOOGLE_SEARCH_CONSOLE
+  GOOGLE_ANALYTICS
+}
+
+model TopicNote {
+  id          String   @id @default(uuid())
+  title       String
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  isCompleted Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  adminId     String?
+
+  @@index([categoryId])
+  @@index([createdAt])
 }
 
 model LegalPage {
@@ -322,6 +349,7 @@ model EmailQueue {
   type         EmailType
   toEmail      String
   toName       String?
+  replyToEmail String?
   subject      String
   htmlBody     String      @db.Text
   textBody     String?     @db.Text
@@ -344,6 +372,7 @@ model EmailLog {
   id                String      @id @default(uuid())
   type              EmailType
   toEmail           String
+  replyToEmail      String?
   subject           String
   status            EmailStatus
   provider          String?     // e.g., "SendGrid", "Resend", "SMTP"

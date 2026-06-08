@@ -1,5 +1,7 @@
 export interface SendEmailOptions {
   to: string;
+  toName?: string;
+  replyTo?: string;
   subject: string;
   html: string;
   text?: string;

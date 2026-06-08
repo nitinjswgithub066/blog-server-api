@@ -11,7 +11,7 @@ export const verifyAdminToken = (req: AuthRequest, res: Response, next: NextFunc
   const token = req.cookies?.admin_token;
 
   if (!token) {
-    return sendError(res, 401, 'Authentication required');
+    return sendError(res, 401, 'Unauthorized');
   }
 
   try {
@@ -23,6 +23,6 @@ export const verifyAdminToken = (req: AuthRequest, res: Response, next: NextFunc
     
     next();
   } catch (error) {
-    return sendError(res, 401, 'Invalid or expired token');
+    return sendError(res, 401, 'Unauthorized');
   }
 };

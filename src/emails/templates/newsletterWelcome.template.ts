@@ -1,19 +1,22 @@
 import { EmailTemplateResult } from "../email.types";
-import { baseEmailTemplate } from "./baseEmail.template";
+import { baseEmailTemplate, emailButton, escapeHtml } from "./baseEmail.template";
 
-export const buildNewsletterWelcomeTemplate = (data: { unsubscribeLink: string; }): EmailTemplateResult => {
+export const buildNewsletterWelcomeTemplate = (data: {
+  unsubscribeLink: string;
+  latestPostsUrl?: string;
+}): EmailTemplateResult => {
+  const latestPostsUrl = data.latestPostsUrl || "#";
   const content = `
-    <h2>Welcome to the Newsletter! 🎉</h2>
-    <p>Thank you for subscribing. You'll now receive our best articles on Technology, AI, Startups, and more.</p>
-    <br/>
-    <a href="#" style="background: #6d5df6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Read Latest Posts</a>
-    <br/><br/>
-    <p style="font-size: 12px; color: #888;">To unsubscribe at any time, click <a href="${data.unsubscribeLink}">here</a>.</p>
+    <h1 style="margin:0 0 12px;color:#ffffff;font-size:26px;line-height:1.25;">Welcome to the newsletter</h1>
+    <p style="margin:0 0 18px;color:#cbd5e1;font-size:15px;line-height:1.7;">Thanks for subscribing. You will receive selected stories across technology, AI, startups, and practical web development.</p>
+    <div style="margin:24px 0;">${emailButton(latestPostsUrl, "Read Latest Posts")}</div>
+    <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.6;">You can unsubscribe anytime using this link:</p>
+    <p style="margin:8px 0 0;color:#a78bfa;font-size:13px;line-height:1.6;word-break:break-all;">${escapeHtml(data.unsubscribeLink)}</p>
   `;
 
   return {
-    subject: "Welcome to our Newsletter!",
+    subject: "Welcome to the Fullstack Blog newsletter",
     html: baseEmailTemplate(content),
-    text: `Welcome to our Newsletter! You can unsubscribe at any time using this link: ${data.unsubscribeLink}`,
+    text: `Welcome to the Fullstack Blog newsletter. You can unsubscribe at any time using this link: ${data.unsubscribeLink}`,
   };
 };

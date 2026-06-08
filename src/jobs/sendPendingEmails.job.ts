@@ -4,19 +4,21 @@ import { emailService } from "../emails/email.service";
 
 export const sendPendingEmailsJob = cron.schedule("* * * * *", async () => {
   try {
-    // Process limited batch size (e.g., 10 emails) to avoid overloading the server/provider
-    const pendingEmails = await prisma.emailQueue.findMany({
+    const eligiblePendingEmails = await prisma.emailQueue.findMany({
       where: {
         status: "PENDING",
         OR: [
           { scheduledFor: null },
           { scheduledFor: { lte: new Date() } },
         ],
-        attempts: { lt: prisma.emailQueue.fields.maxAttempts },
       },
-      take: 10,
+      take: 25,
       orderBy: { createdAt: "asc" },
     });
+
+    const pendingEmails = eligiblePendingEmails
+      .filter(email => email.attempts < email.maxAttempts)
+      .slice(0, 10);
 
     if (pendingEmails.length === 0) {
       return;
