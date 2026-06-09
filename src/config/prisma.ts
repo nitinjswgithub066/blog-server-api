@@ -12,6 +12,28 @@ const adapter = new PrismaPg(pool);
 // Export a single shared PrismaClient instance using the driver adapter (Required for Prisma 7+)
 export const prisma = new PrismaClient({ adapter });
 
+const isTransientDatabaseError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /connection terminated unexpectedly|econnreset|etimedout|terminating connection|connection closed/i.test(message);
+};
+
+export const runPrismaWithRetry = async <T>(
+  operation: () => Promise<T>,
+  retries = 1
+): Promise<T> => {
+  try {
+    return await operation();
+  } catch (error) {
+    if (retries <= 0 || !isTransientDatabaseError(error)) {
+      throw error;
+    }
+
+    console.warn("[PRISMA] Transient database connection error. Retrying query once...");
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    return runPrismaWithRetry(operation, retries - 1);
+  }
+};
+
 // Provide a safe way to cleanly disconnect on server shutdown
 export const disconnectPrisma = async () => {
   await prisma.$disconnect();

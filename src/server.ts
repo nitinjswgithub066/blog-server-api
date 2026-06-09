@@ -7,6 +7,9 @@ import { disconnectPrisma, connectWithRetry, prisma } from "./config/prisma";
 import authRoutes from "./modules/auth/auth.routes";
 import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 import adminPostRoutes from "./modules/admin-posts/adminPost.routes";
+import adminCategoryRoutes from "./modules/admin-categories/adminCategory.routes";
+import adminTagRoutes from "./modules/admin-tags/adminTag.routes";
+import { configureCloudinary } from "./services/cloudinary.service";
 
 dotenv.config();
 
@@ -42,17 +45,47 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/api/health", async (_req, res) => {
+  const mediaConnected = configureCloudinary();
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    res.json({ success: true, server: "ok", database: "connected" });
+    res.json({
+      status: "ok",
+      message: "Blog Server API is running",
+      db: {
+        connected: true,
+        name: "Neon PostgreSQL",
+      },
+      media: {
+        connected: mediaConnected,
+        name: "Cloudinary",
+      },
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+    });
   } catch (error) {
-    res.status(500).json({ success: false, server: "ok", database: "disconnected" });
+    res.status(503).json({
+      status: "degraded",
+      message: "Blog Server API is running",
+      db: {
+        connected: false,
+        name: "Neon PostgreSQL",
+      },
+      media: {
+        connected: mediaConnected,
+        name: "Cloudinary",
+      },
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+    });
   }
 });
 
 app.use("/api/auth", authRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/admin/posts", adminPostRoutes);
+app.use("/api/admin/categories", adminCategoryRoutes);
+app.use("/api/admin/tags", adminTagRoutes);
 
 const PORT = process.env.PORT || 5000;
 

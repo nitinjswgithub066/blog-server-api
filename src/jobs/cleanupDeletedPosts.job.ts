@@ -17,10 +17,8 @@ const isReferencedOutsidePost = async (publicId: string, postId: string) => {
     prisma.media.count({
       where: {
         publicId,
-        OR: [
-          { postId: null },
-          { postId: { not: postId } },
-        ],
+        postId: { not: postId },
+        NOT: { postId: null },
       },
     }),
   ]);
@@ -31,7 +29,7 @@ const isReferencedOutsidePost = async (publicId: string, postId: string) => {
 export const cleanupDeletedPostsJob = cron.schedule("30 2 * * *", async () => {
   try {
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 30);
+    cutoff.setDate(cutoff.getDate() - 14);
 
     const posts = await prisma.post.findMany({
       where: {
@@ -67,6 +65,18 @@ export const cleanupDeletedPostsJob = cron.schedule("30 2 * * *", async () => {
         assets.set(media.publicId, media.resourceType);
       }
 
+      const assetPublicIds = Array.from(assets.keys());
+      if (assetPublicIds.length > 0) {
+        const matchingMedia = await prisma.media.findMany({
+          where: { publicId: { in: assetPublicIds } },
+          select: { publicId: true, resourceType: true },
+        });
+
+        for (const media of matchingMedia) {
+          assets.set(media.publicId, media.resourceType);
+        }
+      }
+
       for (const [publicId, resourceType] of assets.entries()) {
         if (await isReferencedOutsidePost(publicId, post.id)) {
           skippedAssets++;
@@ -82,7 +92,14 @@ export const cleanupDeletedPostsJob = cron.schedule("30 2 * * *", async () => {
         }
       }
 
-      await prisma.media.deleteMany({ where: { postId: post.id } });
+      await prisma.media.deleteMany({
+        where: {
+          OR: [
+            { postId: post.id },
+            ...(assets.size > 0 ? [{ publicId: { in: Array.from(assets.keys()) } }] : []),
+          ],
+        },
+      });
       await prisma.post.delete({ where: { id: post.id } });
       deletedPosts++;
     }

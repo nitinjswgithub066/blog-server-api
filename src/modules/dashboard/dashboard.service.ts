@@ -1,4 +1,4 @@
-import { prisma } from "../../config/prisma";
+import { prisma, runPrismaWithRetry } from "../../config/prisma";
 import { DashboardSearchTrendsResponse, TopPerformingPost } from "./dashboard.types";
 
 const getCleanLabel = (category: string): string => {
@@ -378,7 +378,7 @@ export const getBlogPerformanceService = async (range: string, dateStr: string |
 };
 
 export const getTopicNotesService = async () => {
-  return await prisma.topicNote.findMany({
+  return await runPrismaWithRetry(() => prisma.topicNote.findMany({
     orderBy: [
       { isCompleted: 'asc' },
       { createdAt: 'desc' }
@@ -388,13 +388,13 @@ export const getTopicNotesService = async () => {
         select: { name: true }
       }
     }
-  });
+  }));
 };
 
 export const createTopicNoteService = async (title: string, categoryId?: string, adminId?: string) => {
-  const activeCount = await prisma.topicNote.count({
+  const activeCount = await runPrismaWithRetry(() => prisma.topicNote.count({
     where: { isCompleted: false }
-  });
+  }));
 
   if (activeCount >= 5) {
     throw new Error('You can save only 5 active topic ideas. Complete or delete one before adding a new topic.');
@@ -404,21 +404,21 @@ export const createTopicNoteService = async (title: string, categoryId?: string,
 
   // Try to find the category by ID, or by name if categoryId was actually the name
   if (categoryId) {
-    const cat = await prisma.category.findFirst({
+    const cat = await runPrismaWithRetry(() => prisma.category.findFirst({
       where: {
         OR: [
           { id: categoryId },
           { name: categoryId }
         ]
       }
-    });
+    }));
     
     if (cat) {
       finalCategoryId = cat.id;
     }
   }
 
-  return await prisma.topicNote.create({
+  return await runPrismaWithRetry(() => prisma.topicNote.create({
     data: {
       title,
       categoryId: finalCategoryId,
@@ -429,11 +429,11 @@ export const createTopicNoteService = async (title: string, categoryId?: string,
         select: { name: true }
       }
     }
-  });
+  }));
 };
 
 export const updateTopicNoteService = async (id: string, isCompleted: boolean) => {
-  return await prisma.topicNote.update({
+  return await runPrismaWithRetry(() => prisma.topicNote.update({
     where: { id },
     data: { isCompleted },
     include: {
@@ -441,11 +441,11 @@ export const updateTopicNoteService = async (id: string, isCompleted: boolean) =
         select: { name: true }
       }
     }
-  });
+  }));
 };
 
 export const deleteTopicNoteService = async (id: string) => {
-  return await prisma.topicNote.delete({
+  return await runPrismaWithRetry(() => prisma.topicNote.delete({
     where: { id }
-  });
+  }));
 };

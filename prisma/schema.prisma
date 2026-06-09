@@ -42,6 +42,7 @@ enum MediaUsage {
   CATEGORY_IMAGE
   LEGAL_IMAGE
   DOCUMENT
+  TEMP
   OTHER
 }
 

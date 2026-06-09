@@ -26,6 +26,8 @@ export const publishScheduledPostsJob = cron.schedule("*/5 * * * *", async () =>
           data: {
             status: "PUBLISHED",
             publishedAt: new Date(),
+            scheduledAt: null,
+            deletedAt: null,
           },
         });
 
