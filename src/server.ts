@@ -9,6 +9,7 @@ import dashboardRoutes from "./modules/dashboard/dashboard.routes";
 import adminPostRoutes from "./modules/admin-posts/adminPost.routes";
 import adminCategoryRoutes from "./modules/admin-categories/adminCategory.routes";
 import adminTagRoutes from "./modules/admin-tags/adminTag.routes";
+import adminStatisticsRoutes from "./modules/admin-statistics/adminStatistics.routes";
 import { configureCloudinary } from "./services/cloudinary.service";
 
 dotenv.config();
@@ -86,6 +87,7 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/admin/posts", adminPostRoutes);
 app.use("/api/admin/categories", adminCategoryRoutes);
 app.use("/api/admin/tags", adminTagRoutes);
+app.use("/api/admin/statistics", adminStatisticsRoutes);
 
 const PORT = process.env.PORT || 5000;
 
