@@ -1,5 +1,7 @@
-import { ContentSource, ConversionStatus, MediaUsage, PostStatus, Prisma } from "@prisma/client";
+import { ContentSource, ConversionStatus, EmailType, MediaUsage, PostStatus, Prisma, SubscriberStatus } from "@prisma/client";
 import { prisma } from "../../config/prisma";
+import { emailService } from "../../emails/email.service";
+import { buildNewPostPublishedTemplate } from "../../emails/templates/newPostPublished.template";
 import { getOptimizedCloudinaryUrl } from "../../utils/cloudinaryImageUrl";
 import { slugify } from "../../utils/slugify";
 import { calculateReadingTime } from "../../utils/calculateReadingTime";
@@ -619,6 +621,7 @@ export const publishPostService = async (id: string, payload: PostMutationPayloa
   if (!payload.contentHtml?.trim() && !payload.contentJson) throw new Error("Content required.");
   if (!payload.categoryId) throw new Error("Category required.");
 
+  const existing = await prisma.post.findUnique({ where: { id }, select: { status: true } });
   const data = await buildPostData(payload, id, PostStatus.PUBLISHED);
 
   const post = await prisma.post.update({
@@ -633,6 +636,32 @@ export const publishPostService = async (id: string, payload: PostMutationPayloa
   });
 
   await attachUploadedMediaToPost(post.id, payload);
+
+  if (existing?.status !== PostStatus.PUBLISHED) {
+    const subscribers = await prisma.newsletterSubscriber.findMany({
+      where: { status: SubscriberStatus.ACTIVE },
+      select: { email: true, name: true },
+    });
+    const clientUrl = process.env.CLIENT_WEB_URL || "http://localhost:3000";
+    const excerpt = toTextPreview(post.contentHtml);
+    const template = buildNewPostPublishedTemplate({
+      postTitle: post.title,
+      postUrl: `${clientUrl}/blog/${post.slug}`,
+      excerpt,
+    });
+    await Promise.all(
+      subscribers.map((subscriber) =>
+        emailService.queueEmail({
+          to: subscriber.email,
+          ...(subscriber.name ? { toName: subscriber.name } : {}),
+          subject: template.subject,
+          html: template.html,
+          text: template.text,
+          type: EmailType.NEW_POST_PUBLISHED,
+        })
+      )
+    );
+  }
 
   return mapPost(post, "cover");
 };

@@ -6,6 +6,9 @@ import { keepAliveJob } from "./keepAlive.job";
 import { dashboardTrendSnapshotJob } from "./dashboardTrendSnapshot.job";
 import { blogPerformanceRollupJob } from "./blogPerformanceRollup.job";
 import { cleanupDeletedPostsJob } from "./cleanupDeletedPosts.job";
+import { draftReminderJob } from "./draftReminder.job";
+import { trafficMilestoneJob } from "./trafficMilestone.job";
+import { dailySummaryJob } from "./dailySummary.job";
 
 let jobsStarted = false;
 
@@ -32,6 +35,9 @@ export const startCronJobs = () => {
     dashboardTrendSnapshotJob.start();
     blogPerformanceRollupJob.start();
     cleanupDeletedPostsJob.start();
+    draftReminderJob.start();
+    trafficMilestoneJob.start();
+    dailySummaryJob.start();
     
     if (process.env.ENABLE_DB_KEEP_ALIVE === "true") {
       keepAliveJob.start();
