@@ -10,6 +10,16 @@ import adminPostRoutes from "./modules/admin-posts/adminPost.routes";
 import adminCategoryRoutes from "./modules/admin-categories/adminCategory.routes";
 import adminTagRoutes from "./modules/admin-tags/adminTag.routes";
 import adminStatisticsRoutes from "./modules/admin-statistics/adminStatistics.routes";
+import adminSearchRoutes from "./modules/admin-search/adminSearch.routes";
+import notificationRoutes from "./modules/notifications/notification.routes";
+import adminContactMessageRoutes, { publicContactMessageRouter } from "./modules/contact-messages/contactMessage.routes";
+import adminSubscriberRoutes, { publicSubscriberRouter } from "./modules/subscribers/subscriber.routes";
+import profileRoutes from "./modules/profile/profile.routes";
+import publicPostRoutes from "./modules/public-posts/publicPost.routes";
+import publicCategoryRoutes from "./modules/public-categories/publicCategory.routes";
+import publicProfileRoutes from "./modules/public-profile/publicProfile.routes";
+import commentRoutes from "./modules/comments/comment.routes";
+import adminCommentRoutes from "./modules/comments/adminComment.routes";
 import { configureCloudinary } from "./services/cloudinary.service";
 
 dotenv.config();
@@ -23,6 +33,8 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:5173',
   'http://127.0.0.1:5174',
   'http://127.0.0.1:5175',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
   process.env.ADMIN_DASHBOARD_URL,
   process.env.CLIENT_WEB_URL,
 ].filter(Boolean) as string[];
@@ -88,6 +100,19 @@ app.use("/api/admin/posts", adminPostRoutes);
 app.use("/api/admin/categories", adminCategoryRoutes);
 app.use("/api/admin/tags", adminTagRoutes);
 app.use("/api/admin/statistics", adminStatisticsRoutes);
+app.use("/api/admin/search", adminSearchRoutes);
+app.use("/api/admin/notifications", notificationRoutes);
+app.use("/api/admin/contact-messages", adminContactMessageRoutes);
+app.use("/api/admin/subscribers", adminSubscriberRoutes);
+app.use("/api/admin/profile", profileRoutes);
+app.use("/api/admin/comments", adminCommentRoutes);
+app.use("/api/contact", publicContactMessageRouter);
+app.use("/api/subscribe", publicSubscriberRouter);
+app.use("/api/public/posts", publicPostRoutes);
+app.use("/api/public/home", publicPostRoutes);
+app.use("/api/public/categories", publicCategoryRoutes);
+app.use("/api/public/profile", publicProfileRoutes);
+app.use("/api/public/posts", commentRoutes);
 
 const PORT = process.env.PORT || 5000;
 
