@@ -1,0 +1,8 @@
+ALTER TYPE "PostStatus"
+ADD VALUE IF NOT EXISTS 'DELETED';
+
+ALTER TABLE "Post"
+ADD COLUMN IF NOT EXISTS "deletedAt" TIMESTAMP(3);
+
+CREATE INDEX IF NOT EXISTS "Post_deletedAt_idx"
+ON "Post"("deletedAt");
