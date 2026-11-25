@@ -49,6 +49,7 @@ export const authController = {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        path: '/',
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
@@ -70,7 +71,12 @@ export const authController = {
   },
 
   async logout(_req: Request, res: Response) {
-    res.clearCookie('admin_token');
+    res.clearCookie('admin_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      path: '/',
+    });
     return sendSuccess(res, 200, 'Logged out successfully');
   },
 
