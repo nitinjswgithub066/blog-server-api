@@ -1,0 +1,22 @@
+name: Render Keep Alive
+
+on:
+  schedule:
+    # Every 10 minutes, offset from the hour.
+    - cron: "3,13,23,33,43,53 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping Render web service
+        run: |
+          curl --fail --silent --show-error \
+            --retry 2 \
+            --retry-delay 5 \
+            https://vexirahub-api.onrender.com/

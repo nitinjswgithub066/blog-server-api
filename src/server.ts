@@ -37,6 +37,7 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
   process.env.ADMIN_DASHBOARD_URL,
   process.env.CLIENT_WEB_URL,
+  'https://blog-client-web-gilt.vercel.app',
 ].filter(Boolean) as string[];
 
 app.use(cors({
